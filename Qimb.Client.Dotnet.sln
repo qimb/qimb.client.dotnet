@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Qimb.Client.DotNet", "qimb.client.dotnet\Qimb.Client.DotNet.csproj", "{0D7DD8FF-83C4-47DC-80E1-E1BA6C36ED30}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Qimb.Client.DotNet.TestConsole", "qimb.client.dotnet.TestConsole\Qimb.Client.DotNet.TestConsole.csproj", "{58D70751-BAF6-4285-869E-9BEC16097B2D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0D7DD8FF-83C4-47DC-80E1-E1BA6C36ED30}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0D7DD8FF-83C4-47DC-80E1-E1BA6C36ED30}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0D7DD8FF-83C4-47DC-80E1-E1BA6C36ED30}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0D7DD8FF-83C4-47DC-80E1-E1BA6C36ED30}.Release|Any CPU.Build.0 = Release|Any CPU
+		{58D70751-BAF6-4285-869E-9BEC16097B2D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{58D70751-BAF6-4285-869E-9BEC16097B2D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{58D70751-BAF6-4285-869E-9BEC16097B2D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{58D70751-BAF6-4285-869E-9BEC16097B2D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,10 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text;
@@ -18,8 +17,9 @@ namespace Qimb.Client.DotNet
     {
         private readonly string _endpoint;
         private readonly HttpClient _client = new HttpClient();
-        private readonly TimeSpan _interval = TimeSpan.FromMilliseconds(300);
+        private readonly TimeSpan _interval = TimeSpan.FromMilliseconds(5000);
         private CancellationTokenSource _cancellationToken = new CancellationTokenSource();
+        private readonly ConcurrentDictionary<string, bool> _receivedMessages = new ConcurrentDictionary<string, bool>();
 
         public Guid NodeId { get; set; }
 
@@ -29,44 +29,74 @@ namespace Qimb.Client.DotNet
             NodeId = Guid.NewGuid();
         }
 
+        public async Task<string> PublishMessageDirectAsync(string nodeId, string message)
+        {
+            var messageId = Guid.NewGuid().ToString();
+            var url = this._endpoint + "message/publish/node/" + nodeId + "/" + messageId;
+
+            await PublishMessageToUrl(message, url);
+
+            return messageId;
+        }
 
         public async Task<string> PublishMessageAsync(string messageType, string message)
-        { 
+        {
             var messageId = Guid.NewGuid().ToString();
-            var url = this._endpoint + "message/publish/" + messageType + "/" + messageId;
+            var url = this._endpoint + "message/publish/type/" + messageType + "/" + messageId;
 
+            await PublishMessageToUrl(message, url);
+
+            return messageId;
+        }
+
+        private async Task PublishMessageToUrl(string message, string url)
+        {
             var request = new HttpRequestMessage()
             {
                 RequestUri = new Uri(url),
                 Method = HttpMethod.Put,
                 Content = new ByteArrayContent(Encoding.UTF8.GetBytes(message)),
-                Headers = { { "X-Qimb-NodeId", NodeId.ToString() } }
-            
+                Headers = {{"X-Qimb-NodeId", NodeId.ToString()}}
             };
 
             var response = await _client.SendAsync(request);
 
             if (response.StatusCode != HttpStatusCode.Created)
-                throw new PublishException($"Unable to publish message of type {messageType}");
-
-            return messageId;
+                throw new PublishException($"Unable to publish message");
         }
 
-        public async Task SubscribeAsync(string messageType)
+        public async Task SubscribeDirectAsync(string pushEndpoint = null)
         {
-            var url = this._endpoint + "message/subscribe/" + messageType;
+            var url = this._endpoint + "message/subscribe/node";
+
+            await SubscribeFromUrl(url, pushEndpoint);
+        }
+
+        public async Task SubscribeAsync(string messageType, string pushEndpoint = null)
+        {
+            var url = this._endpoint + "message/subscribe/type/" + messageType;
+
+            await SubscribeFromUrl(url, pushEndpoint);
+        }
+
+        private async Task SubscribeFromUrl(string url, string pushEndpoint)
+        {
+            var content = pushEndpoint != null
+                ? "{\"pushEndpoint\":\"" + pushEndpoint + "\"}"
+                : "{}";
 
             var request = new HttpRequestMessage()
             {
                 RequestUri = new Uri(url),
                 Method = HttpMethod.Put,
-                Headers = { { "X-Qimb-NodeId", NodeId.ToString() } }
+                Headers = {{"X-Qimb-NodeId", NodeId.ToString()}},
+                Content = new ByteArrayContent(Encoding.UTF8.GetBytes(content)),
             };
 
             var response = await _client.SendAsync(request);
 
             if (response.StatusCode != HttpStatusCode.OK)
-                throw new SubscribeException($"Unable to subscribe to type {messageType}");
+                throw new SubscribeException($"Unable to subscribe");
         }
 
         public async Task DeleteMessageAsync(string handle)
@@ -85,6 +115,36 @@ namespace Qimb.Client.DotNet
 
             if (response.StatusCode != HttpStatusCode.OK)
                 throw new DeleteException($"Unable to delete message");
+        }
+
+        public async Task ProcessSnsMessage(Stream bodyContent, Func<Envelope, Task> callback)
+        {
+            DataContractJsonSerializer snsSerializer = new DataContractJsonSerializer(typeof(SnsMessageDTO));
+            var snsMessage = snsSerializer.ReadObject(bodyContent) as SnsMessageDTO;
+
+            if (snsMessage == null)
+                return;
+
+            if (snsMessage.Type == "SubscriptionConfirmation")
+            {
+                await this._client.GetAsync(snsMessage.SubscribeURL);
+            }
+
+            if (snsMessage.Type == "Notification")
+            {
+                DataContractJsonSerializer messageSerializer = new DataContractJsonSerializer(typeof(ReceiveMessageResponseDTO));
+                var messageDto = messageSerializer.ReadObject(new MemoryStream(Encoding.UTF8.GetBytes(snsMessage.Message))) as ReceiveMessageResponseDTO;
+
+                if (IsMessageNew(messageDto.MessageId))
+                {
+                    await callback.Invoke(new Envelope(messageDto));
+                }
+            }
+        }
+
+        private bool IsMessageNew(string messageId)
+        {
+            return _receivedMessages.TryAdd(messageId, true);
         }
 
         public static QimbClient Setup(string endpoint)
@@ -134,10 +194,11 @@ namespace Qimb.Client.DotNet
             }
         }
 
-        private async Task ExecuteMessage(Func<Envelope, Task> callback, ReceiveMessageResponseDTO receiveMessageDto)
+        private async Task ExecuteMessage(Func<Envelope, Task> callback, ReceiveMessageResponseDTO messageDto)
         {
-            await callback.Invoke(new Envelope(receiveMessageDto));
-            await DeleteMessageAsync(receiveMessageDto.ReceiptHandle);
+            if (IsMessageNew(messageDto.MessageId))
+                await callback.Invoke(new Envelope(messageDto));
+            await DeleteMessageAsync(messageDto.ReceiptHandle);
         }
 
         private async void RunAsync(Func<Task> callback)
@@ -172,5 +233,16 @@ namespace Qimb.Client.DotNet
         public string ReceiptHandle { get; set; }
         [DataMember(Name = "senderNodeId")]
         public string SenderNodeId { get; set; }
+    }
+
+    [DataContract]
+    public class SnsMessageDTO
+    {
+        [DataMember]
+        public string Type { get; set; }
+        [DataMember]
+        public string Message { get; set; }
+        [DataMember]
+        public string SubscribeURL { get; set; }
     }
 }

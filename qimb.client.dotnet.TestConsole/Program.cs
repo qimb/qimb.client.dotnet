@@ -11,7 +11,7 @@ namespace Qimb.Client.DotNet.TestConsole
     class Program
     {
         private static QimbClient _client = QimbClient
-            .Setup("https://glb92op7l0.execute-api.eu-west-1.amazonaws.com/v2/");
+            .Setup("url to api gateway");
 
         static void Main(string[] args)
         {

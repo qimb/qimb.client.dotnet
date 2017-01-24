@@ -17,7 +17,7 @@ namespace Qimb.Client.DotNet
     {
         private readonly string _endpoint;
         private readonly HttpClient _client = new HttpClient();
-        private readonly TimeSpan _interval = TimeSpan.FromMilliseconds(5000);
+        private readonly TimeSpan _interval = TimeSpan.FromMilliseconds(300);
         private CancellationTokenSource _cancellationToken = new CancellationTokenSource();
         private readonly ConcurrentDictionary<string, bool> _receivedMessages = new ConcurrentDictionary<string, bool>();
 
@@ -149,6 +149,9 @@ namespace Qimb.Client.DotNet
 
         public static QimbClient Setup(string endpoint)
         {
+            if (!endpoint.EndsWith("/"))
+                endpoint += "/";
+
             return new QimbClient(endpoint);
         }
 

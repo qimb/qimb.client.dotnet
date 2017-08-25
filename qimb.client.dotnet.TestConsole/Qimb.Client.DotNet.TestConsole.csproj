@@ -50,8 +50,8 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\qimb.client.dotnet\Qimb.Client.DotNet.csproj">
-      <Project>{0D7DD8FF-83C4-47DC-80E1-E1BA6C36ED30}</Project>
+    <ProjectReference Include="..\Qimb.Client.DotNet\Qimb.Client.DotNet.csproj">
+      <Project>{e0b13bf6-fa47-43ce-ae86-aeea1e180814}</Project>
       <Name>Qimb.Client.DotNet</Name>
     </ProjectReference>
   </ItemGroup>

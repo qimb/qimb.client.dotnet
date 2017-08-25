@@ -4,10 +4,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using qimb.client.dotnet;
 
 namespace Qimb.Client.DotNet
@@ -118,8 +119,8 @@ namespace Qimb.Client.DotNet
 
         public async Task ProcessSnsMessage(Stream bodyContent, Func<Envelope, Task> callback)
         {
-            StreamReader reader = new StreamReader(bodyContent);
-            var snsMessage = JsonConvert.DeserializeObject<SnsMessageDTO>(reader.ReadToEnd());
+            DataContractJsonSerializer snsSerializer = new DataContractJsonSerializer(typeof(SnsMessageDTO));
+            var snsMessage = snsSerializer.ReadObject(bodyContent) as SnsMessageDTO;
 
             if (snsMessage == null)
                 return;
@@ -131,7 +132,8 @@ namespace Qimb.Client.DotNet
 
             if (snsMessage.Type == "Notification")
             {
-                var messageDto = JsonConvert.DeserializeObject<ReceiveMessageResponseDTO>(snsMessage.Message);
+                DataContractJsonSerializer messageSerializer = new DataContractJsonSerializer(typeof(ReceiveMessageResponseDTO));
+                var messageDto = messageSerializer.ReadObject(new MemoryStream(Encoding.UTF8.GetBytes(snsMessage.Message))) as ReceiveMessageResponseDTO;
 
                 if (IsMessageNew(messageDto.MessageId))
                 {
@@ -176,10 +178,10 @@ namespace Qimb.Client.DotNet
                 if (response.StatusCode != HttpStatusCode.OK)
                     throw new ReceiveException($"Unable to receive messages");
 
-                var messageStream = await response.Content.ReadAsStreamAsync();
-                var reader = new StreamReader(messageStream);
+                var message = await response.Content.ReadAsStreamAsync();
 
-                var messageDTOs = JsonConvert.DeserializeObject<ReceiveMessageResponseDTO[]>(reader.ReadToEnd());
+                DataContractJsonSerializer ser = new DataContractJsonSerializer(typeof(ReceiveMessageResponseDTO[]));
+                var messageDTOs = ser.ReadObject(message) as ReceiveMessageResponseDTO[];
 
                 List<Task> tasks = new List<Task>();
                 foreach (var messageDto in messageDTOs)
@@ -221,27 +223,29 @@ namespace Qimb.Client.DotNet
         }
     }
 
+    [DataContract]
     public class ReceiveMessageResponseDTO
     {
-        [JsonProperty("message")]
+        [DataMember(Name = "message")]
         public string Message { get; set; }
-        [JsonProperty("messageId")]
+        [DataMember(Name = "messageId")]
         public string MessageId { get; set; }
-        [JsonProperty("messageType")]
+        [DataMember(Name = "messageType")]
         public string MessageType { get; set; }
-        [JsonProperty("receiptHandle")]
+        [DataMember(Name = "receiptHandle")]
         public string ReceiptHandle { get; set; }
-        [JsonProperty("senderNodeId")]
+        [DataMember(Name = "senderNodeId")]
         public string SenderNodeId { get; set; }
     }
 
+    [DataContract]
     public class SnsMessageDTO
     {
-        [JsonProperty]
+        [DataMember]
         public string Type { get; set; }
-        [JsonProperty]
+        [DataMember]
         public string Message { get; set; }
-        [JsonProperty]
+        [DataMember]
         public string SubscribeURL { get; set; }
     }
 }
